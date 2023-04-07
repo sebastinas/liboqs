@@ -7,7 +7,10 @@
 
 #include "params.h"
 
+#include <oqs/common.h>
 #include <stdint.h>
+#include <stdlib.h>
+#include <string.h>
 
 typedef uint8_t bit;
 
@@ -179,13 +182,13 @@ static void controlbitsfrompermutation(int w, int n, int step, int off, unsigned
     int j;
     int k;
     int t;
-    uint32_t ip[N] = {0};
-    uint32_t I[2 * N] = {0};
-    uint32_t P[2 * N] = {0};
-    uint32_t PI[2 * N] = {0};
-    uint32_t T[2 * N] = {0};
-    uint32_t piflip[N] = {0};
-    uint32_t subpi[2][N / 2] = {{0}};
+    uint32_t *ip;
+    uint32_t *I;
+    uint32_t *P;
+    uint32_t *PI;
+    uint32_t *T;
+    uint32_t *piflip;
+    uint32_t *subpi[2];
 
     if (w == 1) {
         c[ off / 8 ] |= (pi[0] & 1) << (off % 8);
@@ -194,17 +197,23 @@ static void controlbitsfrompermutation(int w, int n, int step, int off, unsigned
         return;
     }
 
+    ip = malloc(sizeof(uint32_t) * N);
     invert(n, ip, pi);
 
+    I = malloc(sizeof(uint32_t) * 2 * N);
     for (i = 0; i < n; ++i) {
         I[i] = ip[i] | (1 << w);
         I[n + i] = pi[i];
     }
+    OQS_MEM_insecure_free(ip);
 
+    P = malloc(sizeof(uint32_t) * 2 * N);
     for (i = 0; i < 2 * n; ++i) {
         P[i] = (i >> w) + (i & ((1 << w) - 2)) + ((i & 1) << w);
     }
 
+    PI = malloc(sizeof(uint32_t) * 2 * N);
+    T = malloc(sizeof(uint32_t) * 2 * N);
     for (t = 0; t < w; ++t) {
         composeinv(2 * n, PI, P, I);
 
@@ -226,7 +235,11 @@ static void controlbitsfrompermutation(int w, int n, int step, int off, unsigned
             flow(w, &P[i], &T[i], 1);
         }
     }
+    OQS_MEM_insecure_free(T);
+    OQS_MEM_insecure_free(PI);
+    OQS_MEM_insecure_free(I);
 
+    piflip = malloc(sizeof(uint32_t) * N);
     for (i = 0; i < n; ++i) {
         for (j = 0; j < w; ++j) {
             piflip[i] = pi[i];
@@ -243,32 +256,38 @@ static void controlbitsfrompermutation(int w, int n, int step, int off, unsigned
     for (i = 0; i < n / 2; ++i) {
         cswap(&piflip[i * 2], &piflip[i * 2 + 1], (P[n + i * 2] >> w) & 1);
     }
+    OQS_MEM_insecure_free(P);
 
     for (k = 0; k < 2; ++k) {
+        subpi[k] = malloc(sizeof(uint32_t) * N / 2);
         for (i = 0; i < n / 2; ++i) {
             subpi[k][i] = piflip[i * 2 + k] >> 1;
         }
     }
+    OQS_MEM_insecure_free(piflip);
 
     for (k = 0; k < 2; ++k) {
         controlbitsfrompermutation(w - 1, n / 2, step * 2, off + step * (n / 2 + k), c, subpi[k]);
     }
+    OQS_MEM_insecure_free(subpi[1]);
+    OQS_MEM_insecure_free(subpi[0]);
 }
 
 /* input: pi, a permutation*/
 /* output: out, control bits w.r.t. pi */
 void PQCLEAN_MCELIECE6688128_VEC_controlbits(unsigned char *out, const uint32_t *pi) {
     unsigned int i;
-    unsigned char c[ (2 * GFBITS - 1) * (1 << GFBITS) / 16 ];
+    unsigned char *c;
 
-    for (i = 0; i < sizeof(c); i++) {
+    c = calloc((2 * GFBITS - 1) * (1 << GFBITS) / 16, sizeof(unsigned char));
+
+    for (i = 0; i < ((2 * GFBITS - 1) * (1 << GFBITS) / 16); i++) {
         c[i] = 0;
     }
 
     controlbitsfrompermutation(GFBITS, (1 << GFBITS), 1, 0, c, pi);
 
-    for (i = 0; i < sizeof(c); i++) {
-        out[i] = c[i];
-    }
+    memcpy(out, c, ((2 * GFBITS - 1) * (1 << GFBITS) / 16));
+    OQS_MEM_insecure_free(c);
 }
 
