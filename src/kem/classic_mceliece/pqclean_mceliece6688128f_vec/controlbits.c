@@ -197,23 +197,23 @@ static void controlbitsfrompermutation(int w, int n, int step, int off, unsigned
         return;
     }
 
-    ip = malloc(sizeof(uint32_t) * N);
+    ip = calloc(N, sizeof(uint32_t));
     invert(n, ip, pi);
 
-    I = malloc(sizeof(uint32_t) * 2 * N);
+    I = calloc(2 * N, sizeof(uint32_t));
     for (i = 0; i < n; ++i) {
         I[i] = ip[i] | (1 << w);
         I[n + i] = pi[i];
     }
     OQS_MEM_insecure_free(ip);
 
-    P = malloc(sizeof(uint32_t) * 2 * N);
+    P = calloc(2 * N, sizeof(uint32_t));
     for (i = 0; i < 2 * n; ++i) {
         P[i] = (i >> w) + (i & ((1 << w) - 2)) + ((i & 1) << w);
     }
 
-    PI = malloc(sizeof(uint32_t) * 2 * N);
-    T = malloc(sizeof(uint32_t) * 2 * N);
+    PI = calloc(2 * N, sizeof(uint32_t));
+    T = calloc(2 * N, sizeof(uint32_t));
     for (t = 0; t < w; ++t) {
         composeinv(2 * n, PI, P, I);
 
@@ -239,7 +239,7 @@ static void controlbitsfrompermutation(int w, int n, int step, int off, unsigned
     OQS_MEM_insecure_free(PI);
     OQS_MEM_insecure_free(I);
 
-    piflip = malloc(sizeof(uint32_t) * N);
+    piflip = calloc(N, sizeof(uint32_t));
     for (i = 0; i < n; ++i) {
         for (j = 0; j < w; ++j) {
             piflip[i] = pi[i];
@@ -259,7 +259,7 @@ static void controlbitsfrompermutation(int w, int n, int step, int off, unsigned
     OQS_MEM_insecure_free(P);
 
     for (k = 0; k < 2; ++k) {
-        subpi[k] = malloc(sizeof(uint32_t) * N / 2);
+        subpi[k] = calloc(N / 2, sizeof(uint32_t));
         for (i = 0; i < n / 2; ++i) {
             subpi[k][i] = piflip[i * 2 + k] >> 1;
         }
